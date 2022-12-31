@@ -9,6 +9,7 @@ int add(int i, int j) {
 }
 
 PYBIND11_MODULE(pybind11_log_test, m) {
+  pybind11_log::init();
   m.doc() = "pybind11_log example plugin";
   m.def("add", &add, "A function which adds two numbers with logging");
 }
