@@ -12,23 +12,33 @@ namespace py = pybind11;
 
 namespace pybind11_log {
 
-int map_level(spdlog::level::level_enum level) {
+enum LevelFilter : int {
+  Off = 0,
+  Trace = 5,
+  Debug = 10,
+  Info = 20,
+  Warn = 30,
+  Error = 40,
+  Critical = 50,
+};
+
+LevelFilter map_level(spdlog::level::level_enum level) {
   switch (level) {
     case spdlog::level::trace:
-      return 5;
+      return LevelFilter::Trace;
     case spdlog::level::debug:
-      return 10;
+      return LevelFilter::Debug;
     case spdlog::level::info:
-      return 20;
+      return LevelFilter::Info;
     case spdlog::level::warn:
-      return 30;
+      return LevelFilter::Warn;
     case spdlog::level::err:
-      return 40;
+      return LevelFilter::Error;
     case spdlog::level::critical:
-      return 50;
+      return LevelFilter::Critical;
     case spdlog::level::off:
     default:
-      return 0;
+      return LevelFilter::Off;
   }
 }
 
@@ -36,15 +46,15 @@ template <typename Mutex>
 class pybind11_sink : public spdlog::sinks::base_sink<Mutex> {
  public:
   void sink_it_(const spdlog::details::log_msg& msg) override {
-    std::string target = "pybind11_log";
-    auto py_logging = py::module::import("logging");
+    const std::string target = "pybind11_log";
+    auto py_logging = py::module_::import("logging");
     auto py_logger = py_logging.attr("getLogger")(target);
     std::string filename = msg.source.filename ? msg.source.filename : "";
     std::string msg_payload =
         std::string(msg.payload.begin(), msg.payload.end());
     auto record = py_logger.attr("makeRecord")(
-        target, map_level(msg.level), filename, msg.source.line, msg_payload,
-        py::none(), py::none());
+        target, static_cast<int>(map_level(msg.level)), filename,
+        msg.source.line, msg_payload, py::none(), py::none());
     py_logger.attr("handle")(record);
   }
 
@@ -65,11 +75,6 @@ SPDLOG_INLINE std::shared_ptr<spdlog::logger> pybind11_st(
     const std::string& logger_name) {
   return Factory::template create<pybind11_sink_st>(logger_name);
 }
-
-class Logger {
- public:
- private:
-};
 
 void init() {
   auto logger = pybind11_st("pybind11_log");
