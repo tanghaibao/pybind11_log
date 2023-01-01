@@ -47,18 +47,23 @@ class pybind11_sink : public spdlog::sinks::base_sink<Mutex> {
  public:
   void sink_it_(const spdlog::details::log_msg& msg) override {
     const std::string target = "pybind11_log";
-    auto py_logging = py::module_::import("logging");
-    auto py_logger = py_logging.attr("getLogger")(target);
+    if (py_logger_.is_none()) {
+      auto py_logging = py::module::import("logging");
+      py_logger_ = py_logging.attr("getLogger")(target);
+    }
     std::string filename = msg.source.filename ? msg.source.filename : "";
     std::string msg_payload =
         std::string(msg.payload.begin(), msg.payload.end());
-    auto record = py_logger.attr("makeRecord")(
+    auto record = py_logger_.attr("makeRecord")(
         target, static_cast<int>(map_level(msg.level)), filename,
         msg.source.line, msg_payload, py::none(), py::none());
-    py_logger.attr("handle")(record);
+    py_logger_.attr("handle")(record);
   }
 
   void flush_() override {}
+
+ private:
+  py::object py_logger_ = py::none();
 };
 
 using pybind11_sink_mt = pybind11_sink<std::mutex>;
