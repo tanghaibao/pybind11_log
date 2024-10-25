@@ -83,7 +83,7 @@ SPDLOG_INLINE std::shared_ptr<spdlog::logger> pybind11_st(
 }
 
 void init() {
-  auto logger = pybind11_st("pybind11_log");
+  auto logger = pybind11_mt("pybind11_log");
   spdlog::set_default_logger(logger);
 }
 }  // namespace pybind11_log
