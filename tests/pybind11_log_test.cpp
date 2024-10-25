@@ -20,9 +20,9 @@ int divide(int i, int j) {
 }
 
 void sleep_and_log() {
-  spdlog::info("will sleep for 1s");
+  spdlog::info("thread: will sleep for 1s");
   sleep(1);
-  spdlog::info("sleep completed");
+  spdlog::info("thread: sleep completed");
 }
 
 void threaded_log() {
@@ -34,7 +34,7 @@ void threaded_log() {
 }
 
 PYBIND11_MODULE(pybind11_log_test, m) {
-  pybind11_log::init();
+  pybind11_log::init_mt();
   m.doc() = "pybind11_log example plugin";
   m.def("add", &add, "A function which adds two numbers with logging");
   m.def("divide", &divide, "A function which divides two numbers with logging");
