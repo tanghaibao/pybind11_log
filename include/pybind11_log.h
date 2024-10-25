@@ -22,6 +22,7 @@ enum LevelFilter : int {
   Critical = 50,
 };
 
+/// Map from spdlog logging level to Python logging level
 LevelFilter map_level(spdlog::level::level_enum level) {
   switch (level) {
     case spdlog::level::trace:
@@ -47,6 +48,8 @@ class pybind11_sink : public spdlog::sinks::base_sink<Mutex> {
  public:
   void sink_it_(const spdlog::details::log_msg& msg) override {
     const std::string target = "pybind11_log";
+    // Acquire GIL to interact with Python interpreter
+    py::gil_scoped_acquire acquire;
     if (py_logger_.is_none()) {
       auto py_logging = py::module::import("logging");
       py_logger_ = py_logging.attr("getLogger")(target);
@@ -81,7 +84,14 @@ SPDLOG_INLINE std::shared_ptr<spdlog::logger> pybind11_st(
   return Factory::template create<pybind11_sink_st>(logger_name);
 }
 
-void init() {
+/// Initialize a multi-threaded logger
+void init_mt() {
+  auto logger = pybind11_mt("pybind11_log");
+  spdlog::set_default_logger(logger);
+}
+
+/// Initialize a single-threaded logger
+void init_st() {
   auto logger = pybind11_st("pybind11_log");
   spdlog::set_default_logger(logger);
 }
