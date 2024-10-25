@@ -47,6 +47,7 @@ class pybind11_sink : public spdlog::sinks::base_sink<Mutex> {
  public:
   void sink_it_(const spdlog::details::log_msg& msg) override {
     const std::string target = "pybind11_log";
+    py::gil_scoped_acquire acquire;
     if (py_logger_.is_none()) {
       auto py_logging = py::module::import("logging");
       py_logger_ = py_logging.attr("getLogger")(target);
