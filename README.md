@@ -21,6 +21,8 @@ The library is header-only, so you can just include the header file
 #include <pybind11/pybind11.h>
 #include <spdlog/spdlog.h>
 
+#include <thread>
+
 int add(int i, int j) {
   spdlog::info("add({0}, {1})", i, j);
   return i + j;
@@ -50,12 +52,17 @@ void threaded_log() {
   spdlog::info("threaded_log() ends");
 }
 
+void init(const std::string& logger_name) {
+  pybind11_log::init_mt(logger_name);
+}
+
 PYBIND11_MODULE(pybind11_log_test, m) {
-  pybind11_log::init_mt();
   m.doc() = "pybind11_log example plugin";
+  m.def("init", &init, "Initialize the logger");
   m.def("add", &add, "A function which adds two numbers with logging");
   m.def("divide", &divide, "A function which divides two numbers with logging");
-  m.def("threaded_log", &threaded_log, "A function which sleeps and log in a thread");
+  m.def("threaded_log", &threaded_log,
+        "A function which sleeps and log in a thread");
 }
 ```
 
@@ -71,12 +78,13 @@ sys.path.append(os.getcwd())
 from rich.logging import RichHandler
 
 logging.basicConfig(
-    level="NOTSET", format="%(message)s", datefmt="[%X]", handlers=[RichHandler()]
+    level="NOTSET", format="%(name)s %(message)s", datefmt="[%X]", handlers=[RichHandler()]
 )
 
 import pybind11_log_test
 
 if __name__ == "__main__":
+    pybind11_log_test.init("my_fancy_logger")
     pybind11_log_test.add(3, 4)
     pybind11_log_test.threaded_log()
     pybind11_log_test.divide(3, 0)
