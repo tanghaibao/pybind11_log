@@ -47,18 +47,17 @@ template <typename Mutex>
 class pybind11_sink : public spdlog::sinks::base_sink<Mutex> {
  public:
   void sink_it_(const spdlog::details::log_msg& msg) override {
-    const std::string target = name_;
     // Acquire GIL to interact with Python interpreter
     py::gil_scoped_acquire acquire;
     if (py_logger_.is_none()) {
       auto py_logging = py::module::import("logging");
-      py_logger_ = py_logging.attr("getLogger")(target);
+      py_logger_ = py_logging.attr("getLogger")(name_);
     }
     std::string filename = msg.source.filename ? msg.source.filename : "";
     std::string msg_payload =
         std::string(msg.payload.begin(), msg.payload.end());
     auto record = py_logger_.attr("makeRecord")(
-        target, static_cast<int>(map_level(msg.level)), filename,
+        name_, static_cast<int>(map_level(msg.level)), filename,
         msg.source.line, msg_payload, py::none(), py::none());
     py_logger_.attr("handle")(record);
   }
@@ -75,24 +74,23 @@ class pybind11_sink : public spdlog::sinks::base_sink<Mutex> {
 using pybind11_sink_mt = pybind11_sink<std::mutex>;
 using pybind11_sink_st = pybind11_sink<spdlog::details::null_mutex>;
 
-template <typename Factory = spdlog::synchronous_factory>
-SPDLOG_INLINE std::shared_ptr<spdlog::logger> pybind11_mt(
+template <typename Factory = spdlog::synchronous_factory,
+          typename Sink = pybind11_sink_mt>
+SPDLOG_INLINE std::shared_ptr<spdlog::logger> pybind11_helper(
     const std::string& logger_name) {
-  auto ptr = Factory::template create<pybind11_sink_mt>(logger_name);
-  auto sink_ptr =
-      std::dynamic_pointer_cast<pybind11_sink_mt>(ptr->sinks().back());
+  auto ptr = Factory::template create<Sink>(logger_name);
+  auto sink_ptr = std::dynamic_pointer_cast<Sink>(ptr->sinks().back());
   sink_ptr->set_name(logger_name);
   return ptr;
 }
 
-template <typename Factory = spdlog::synchronous_factory>
-SPDLOG_INLINE std::shared_ptr<spdlog::logger> pybind11_st(
-    const std::string& logger_name) {
-  auto ptr = Factory::template create<pybind11_sink_st>(logger_name);
-  auto sink_ptr =
-      std::dynamic_pointer_cast<pybind11_sink_st>(ptr->sinks().back());
-  sink_ptr->set_name(logger_name);
-  return ptr;
+std::shared_ptr<spdlog::logger> pybind11_mt(const std::string& logger_name) {
+  return pybind11_helper<>(logger_name);
+}
+
+std::shared_ptr<spdlog::logger> pybind11_st(const std::string& logger_name) {
+  return pybind11_helper<spdlog::synchronous_factory, pybind11_sink_st>(
+      logger_name);
 }
 
 /// Initialize a multi-threaded logger
