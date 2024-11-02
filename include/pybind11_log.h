@@ -47,7 +47,7 @@ template <typename Mutex>
 class pybind11_sink : public spdlog::sinks::base_sink<Mutex> {
  public:
   void sink_it_(const spdlog::details::log_msg& msg) override {
-    const std::string target = "pybind11_log";
+    const std::string target = name_;
     // Acquire GIL to interact with Python interpreter
     py::gil_scoped_acquire acquire;
     if (py_logger_.is_none()) {
@@ -65,8 +65,11 @@ class pybind11_sink : public spdlog::sinks::base_sink<Mutex> {
 
   void flush_() override {}
 
+  void set_name(const std::string& logger_name) { name_ = logger_name; }
+
  private:
   py::object py_logger_ = py::none();
+  std::string name_;
 };
 
 using pybind11_sink_mt = pybind11_sink<std::mutex>;
@@ -75,24 +78,32 @@ using pybind11_sink_st = pybind11_sink<spdlog::details::null_mutex>;
 template <typename Factory = spdlog::synchronous_factory>
 SPDLOG_INLINE std::shared_ptr<spdlog::logger> pybind11_mt(
     const std::string& logger_name) {
-  return Factory::template create<pybind11_sink_mt>(logger_name);
+  auto ptr = Factory::template create<pybind11_sink_mt>(logger_name);
+  auto sink_ptr =
+      std::dynamic_pointer_cast<pybind11_sink_mt>(ptr->sinks().back());
+  sink_ptr->set_name(logger_name);
+  return ptr;
 }
 
 template <typename Factory = spdlog::synchronous_factory>
 SPDLOG_INLINE std::shared_ptr<spdlog::logger> pybind11_st(
     const std::string& logger_name) {
-  return Factory::template create<pybind11_sink_st>(logger_name);
+  auto ptr = Factory::template create<pybind11_sink_st>(logger_name);
+  auto sink_ptr =
+      std::dynamic_pointer_cast<pybind11_sink_st>(ptr->sinks().back());
+  sink_ptr->set_name(logger_name);
+  return ptr;
 }
 
 /// Initialize a multi-threaded logger
-void init_mt() {
-  auto logger = pybind11_mt("pybind11_log");
+void init_mt(const std::string& logger_name) {
+  auto logger = pybind11_mt(logger_name);
   spdlog::set_default_logger(logger);
 }
 
 /// Initialize a single-threaded logger
-void init_st() {
-  auto logger = pybind11_st("pybind11_log");
+void init_st(const std::string& logger_name) {
+  auto logger = pybind11_st(logger_name);
   spdlog::set_default_logger(logger);
 }
 }  // namespace pybind11_log
