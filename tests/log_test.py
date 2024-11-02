@@ -7,7 +7,7 @@ sys.path.append(os.getcwd())
 from rich.logging import RichHandler
 
 logging.basicConfig(
-    level="NOTSET", format="%(message)s", datefmt="[%X]", handlers=[RichHandler()]
+    level="NOTSET", format="%(name)s %(message)s", datefmt="[%X]", handlers=[RichHandler()]
 )
 
 import pybind11_log_test
