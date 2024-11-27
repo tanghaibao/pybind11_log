@@ -43,6 +43,10 @@ LevelFilter map_level(spdlog::level::level_enum level) {
   }
 }
 
+bool is_enabled(py::object py_logger, int level) {
+   return py_logger.attr("isEnabledFor")(level).cast<bool>();
+}
+
 template <typename Mutex>
 class pybind11_sink : public spdlog::sinks::base_sink<Mutex> {
  public:
@@ -56,10 +60,15 @@ class pybind11_sink : public spdlog::sinks::base_sink<Mutex> {
     std::string filename = msg.source.filename ? msg.source.filename : "";
     std::string msg_payload =
         std::string(msg.payload.begin(), msg.payload.end());
-    auto record = py_logger_.attr("makeRecord")(
-        name_, static_cast<int>(map_level(msg.level)), filename,
-        msg.source.line, msg_payload, py::none(), py::none());
-    py_logger_.attr("handle")(record);
+
+    int level = static_cast<int>(map_level(msg.level));
+
+    if (is_enabled(py_logger_, level)) {
+        auto record = py_logger_.attr("makeRecord")(
+            name_, level, filename,
+            msg.source.line, msg_payload, py::none(), py::none());
+        py_logger_.attr("handle")(record);
+    }
   }
 
   void flush_() override {}
