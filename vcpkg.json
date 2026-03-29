@@ -1,0 +1,8 @@
+{
+  "name": "pybind11-log",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "spdlog",
+    "fmt"
+  ]
+}
