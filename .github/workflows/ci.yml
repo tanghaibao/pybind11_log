@@ -13,25 +13,36 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
 
+    env:
+      VCPKG_DEFAULT_TRIPLET: ${{ matrix.os == 'macos-latest' && 'arm64-osx' || 'x64-linux' }}
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
+        id: setup-python
         with:
           python-version: "3.12"
 
       - name: Install Python dependencies
-        run: pip install pytest
+        run: pip install pytest pybind11
+
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v5
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgGitCommitId: "01f602195983451bc83e72f4214af2cbc495aa94"
+          vcpkgGitCommitId: "d89b2e934e26d8a1f04e19a5e4e3e202de3dbbcb"
+
+      - name: Configure
+        run: |
+          cmake --preset vcpkg \
+            -DPython3_EXECUTABLE="${{ steps.setup-python.outputs.python-path }}" \
+            -Dpybind11_DIR="$(python -c 'import pybind11; print(pybind11.get_cmake_dir())')"
 
       - name: Build
-        uses: lukka/run-cmake@v10
-        with:
-          configurePreset: vcpkg
+        run: cmake --build build
 
       - name: Test
         run: python -m pytest tests/log_test.py -v
