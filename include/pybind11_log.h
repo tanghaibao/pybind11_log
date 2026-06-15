@@ -10,6 +10,15 @@
 
 namespace py = pybind11;
 
+// Py_IsFinalizing() is public since CPython 3.13; before that the equivalent is
+// the (available) private _Py_IsFinalizing(). Used to avoid touching the
+// interpreter while it is being torn down.
+#if PY_VERSION_HEX >= 0x030D0000
+#define PYBIND11_LOG_PY_IS_FINALIZING() Py_IsFinalizing()
+#else
+#define PYBIND11_LOG_PY_IS_FINALIZING() _Py_IsFinalizing()
+#endif
+
 namespace pybind11_log {
 
 enum LevelFilter : int {
@@ -51,6 +60,12 @@ template <typename Mutex>
 class pybind11_sink : public spdlog::sinks::base_sink<Mutex> {
  public:
   void sink_it_(const spdlog::details::log_msg& msg) override {
+    // Skip routing to Python if the interpreter is gone or being torn down
+    // Acquiring the GIL or importing logging while finalizing can hang or crash.
+    if (!Py_IsInitialized() || PYBIND11_LOG_PY_IS_FINALIZING()) {
+      return;
+    }
+
     // Acquire GIL to interact with Python interpreter
     py::gil_scoped_acquire acquire;
     if (py_logger_.is_none()) {
